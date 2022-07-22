@@ -92,46 +92,20 @@
         {
           name: "US ETFs",
           symbols: [
-            "VOO",
+            "VTI",
             "VO",
             "VB",
+            "VXUS"
           ],
         },
         {
-          name: "FAANG",
+          name: "MANGA",
           symbols: [
+            "META",
+            "AMZN",
+            "NFLX",
             "GOOGL",
             "AAPL",
-            "NFLX",
-            "FB",
-            "AMZN",
-          ],
-        },
-        {
-          name: "International",
-          symbols: [
-            "VT",
-            "VEA",
-            "VGK",
-            "VPL",
-            "VXUS",
-            "VWO",
-          ],
-        },
-        {
-          name: "Sector",
-          symbols: [
-            "VOX",
-            "VCR",
-            "VDC",
-            "VDE",
-            "VFH",
-            "VHT",
-            "VIS",
-            "VGT",
-            "VAW",
-            "VNQ",
-            "VPU",
           ],
         },
       ];
@@ -293,7 +267,7 @@
       }
 
       function symbolUrl(symbol) {
-        return `https://iextrading.com/apps/stocks/${symbol}`;
+        return `https://stock-charts.takashiidobe.com/?q=${symbol}&t=fiveYears`;
       }
 
       function formatChange(value) {
