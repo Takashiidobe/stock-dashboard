@@ -75,23 +75,18 @@
     <div class="stocks-container"></div>
 
     <p class="attribution">
-      Data provided for free by
-      <a href="https://iextrading.com/developer/" target="_blank">IEX</a>.
-      Subject to
-      <a href="https://iextrading.com/api-exhibit-a/" target="_blank"
-        >IEX Exhibit A</a
-      >.
+      Data provided by
+      <a href="https://finnhub.io/" target="_blank">Finnhub</a>.
     </p>
 
     <script>
       "use strict";
 
       const DEFAULT_PORTFOLIOS = [
-        { name: "Zendesk", symbols: ["ZEN"] },
-        { name: "Holdings", symbols: ["VOO", "MSFT", "NET"] },
         {
           name: "US ETFs",
           symbols: [
+            "VOO",
             "VTI",
             "VO",
             "VB",
@@ -103,19 +98,17 @@
           symbols: [
             "META",
             "AMZN",
-            "NFLX",
+            "NVDA",
             "GOOGL",
             "AAPL",
           ],
         },
       ];
 
-      const API_TOKEN = "pk_c2639fbdc0c04a9cbea55883f5a64a6f";
-
       const PORTFOLIOS = portfoliosFromQueryParams() || DEFAULT_PORTFOLIOS;
       const REFRESH_SECONDS = 60;
       const BATCH_SIZE = 100;
-      const BASE_URL = "https://cloud.iexapis.com/stable/stock/market/batch";
+      const BASE_URL = "/.netlify/functions/quotes";
 
       let symbols = [];
       let containerDiv = document.querySelector(".stocks-container");
@@ -177,41 +170,49 @@
 
       function updateData(addTitle) {
         let numberOfBatches = Math.ceil(symbols.length / BATCH_SIZE);
+        let updates = [];
 
         for (let i = 0; i < numberOfBatches; i++) {
           let symbolsBatch = symbols.slice(
             i * BATCH_SIZE,
             (i + 1) * BATCH_SIZE
           );
-          updateDataForBatch(symbolsBatch, addTitle);
+          updates.push(updateDataForBatch(symbolsBatch, addTitle));
         }
 
-        updatedDiv.innerHTML = `Data updated at ${new Date().toLocaleString()}`;
+        Promise.all(updates)
+          .then(() => {
+            updatedDiv.innerHTML = `Data updated at ${new Date().toLocaleString()}`;
+          })
+          .catch(() => {
+            updatedDiv.innerHTML = `Data update failed at ${new Date().toLocaleString()}`;
+          });
       }
 
       function updateDataForBatch(symbols, addTitle) {
-        let filters = ["latestPrice", "change", "changePercent", "marketCap"];
-        if (addTitle) filters.push("companyName");
-        let url = `${BASE_URL}?types=quote&symbols=${symbols.join(
-          ","
-        )}&filter=${filters.join(",")}&token=${API_TOKEN}`;
+        let url = `${BASE_URL}?symbols=${symbols.join(",")}`;
+        if (addTitle) url += "&profile=1";
 
-        fetch(url)
+        return fetch(url)
+          .then((response) => {
+            if (!response.ok) throw new Error("Could not fetch quotes");
+            return response;
+          })
           .then((response) => response.json())
           .then((json) => {
             symbols.forEach((symbol) => {
               let data = json[symbol];
-              if (typeof data === "undefined" || !data.quote.latestPrice)
+              if (typeof data === "undefined" || !data.latestPrice)
                 return;
 
-              let formattedPrice = formatQuote(Number(data.quote.latestPrice));
-              let formattedChange = formatChange(data.quote.change);
+              let formattedPrice = formatQuote(Number(data.latestPrice));
+              let formattedChange = formatChange(data.change);
               let formattedChangePercent = formatChangePercent(
-                data.quote.changePercent
+                data.changePercent
               );
-              let formattedMarketCap = formatMarketCap(data.quote.marketCap);
+              let formattedMarketCap = formatMarketCap(data.marketCap);
               let bgColorStyle = calculateBgColorStyle(
-                data.quote.changePercent
+                data.changePercent
               );
 
               document
@@ -238,7 +239,7 @@
               document
                 .querySelectorAll(`[data-symbol="${symbol}"] .stock-mkt-cap`)
                 .forEach((e) => {
-                  e.innerHTML = formattedMarketCap;
+                  if (data.marketCap !== undefined) e.innerHTML = formattedMarketCap;
                   e.setAttribute("style", bgColorStyle);
                 });
 
@@ -246,7 +247,7 @@
                 document
                   .querySelectorAll(`[data-symbol="${symbol}"] .stock-symbol a`)
                   .forEach((e) => {
-                    e.setAttribute("title", data.quote.companyName);
+                    e.setAttribute("title", data.companyName);
                   });
               }
             });
